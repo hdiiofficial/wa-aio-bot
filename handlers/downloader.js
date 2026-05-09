@@ -466,7 +466,22 @@ export async function extractThumbnail(videoFile) {
     // Seek ke 10% durasi (minimal 1 detik, maksimal 10 detik)
     const seekTo = Math.min(10, Math.max(1, duration * 0.1));
 
-    // Coba beberapa posisi seek, fallback ke frame 0 jika hasilnya abu-abu
+    // Prioritas 1: pakai thumbnail filter ffmpeg (otomatis pilih frame paling representatif)
+      try {
+          await execFileAsync("ffmpeg", [
+              "-y",
+              "-i", videoFile,
+              "-vf", "thumbnail=300,scale=320:-2,format=yuv420p",
+              "-pix_fmt", "yuvj420p",
+              "-vframes", "1",
+              "-q:v", "2",
+              thumbFile,
+          ], { timeout:30_000 });
+          if (fs.existsSync(thumbFile) && fs.statSync(thumbFile).size > 3000) return thumbFile;
+          try { fs.unlinkSync(thumbFile); } catch(_) {}
+      } catch(_) {}
+
+      // Fallback: seek ke beberapa posisi jika thumbnail filter gagal
       for (const seek of [seekTo, 1, 0]) {
           try {
               await execFileAsync("ffmpeg", [
