@@ -449,11 +449,21 @@ export async function downloadAudio(url) {
 }
 
 export async function extractThumbnail(videoFile) {
-    const thumbFile = videoFile.replace(/\.\w+$/, "_thumb.jpg");
-    try {
-        await execFileAsync("ffmpeg", ["-y","-i",videoFile,"-ss","00:00:01","-vframes","1","-q:v","2","-vf","scale=320:-2",thumbFile], { timeout:15_000 });
-        if (fs.existsSync(thumbFile) && fs.statSync(thumbFile).size > 500) return thumbFile;
-    } catch (_) {}
+    // Coba beberapa timestamp supaya tidak dapat frame hitam/abu-abu
+    const timestamps = ["00:00:03", "00:00:05", "00:00:01"];
+    for (const ts of timestamps) {
+        const thumbFile = videoFile.replace(/\.\w+$/, `_thumb.jpg`);
+        try {
+            await execFileAsync("ffmpeg", [
+                "-y", "-ss", ts, "-i", videoFile,
+                "-vframes", "1", "-q:v", "2",
+                "-vf", "scale=320:-2",
+                thumbFile,
+            ], { timeout:15_000 });
+            if (fs.existsSync(thumbFile) && fs.statSync(thumbFile).size > 5000) return thumbFile;
+            try { fs.unlinkSync(thumbFile); } catch(_) {}
+        } catch (_) {}
+    }
     return null;
 }
 
