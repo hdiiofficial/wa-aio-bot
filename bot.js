@@ -366,7 +366,6 @@ app.listen(PORT, () => console.log(`🌐 HTTP server aktif di port ${PORT}`));
 const msgRetryCounterCache = { _m:new Map(), get(k){return this._m.get(k);}, set(k,v){this._m.set(k,v);} };
 let _pairingDone    = false;
 let _logoutRetries  = 0;
-
 const _downloadingUrls = new Set();
 
 function resetPairingState() { _pairingDone = false; }
@@ -418,11 +417,15 @@ async function startBot() {
             if (errCode === DisconnectReason.loggedOut) {
                 _logoutRetries++;
                 resetPairingState();
-                // Selalu hapus session invalid — tapi pakai backoff biar tidak loop gila
-                try { fs.rmSync(SESSION_DIR, { recursive:true, force:true }); } catch(_) {}
-                fs.mkdirSync(SESSION_DIR, { recursive:true });
+                // Hapus ISI folder session (bukan foldernya — volume mount tidak bisa di-rmSync)
+                try {
+                    for (const f of fs.readdirSync(SESSION_DIR)) {
+                        fs.rmSync(path.join(SESSION_DIR, f), { recursive:true, force:true });
+                    }
+                } catch(_) {}
+                // Exponential backoff: 3s → 6s → 12s → 24s → max 60s
                 const delay = Math.min(3000 * Math.pow(2, _logoutRetries - 1), 60000);
-                console.log(`⏰ Session invalid (percobaan ke-${_logoutRetries}), retry dalam ${delay/1000}s...`);
+                console.log(`⏰ Session invalid/expired (ke-${_logoutRetries}), retry dalam ${delay/1000}s...`);
                 setTimeout(startBot, delay);
                 return;
             }
