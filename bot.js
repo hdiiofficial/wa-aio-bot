@@ -364,7 +364,8 @@ app.listen(PORT, () => console.log(`🌐 HTTP server aktif di port ${PORT}`));
 
 // ── WA Connection ─────────────────────────────────────────────────────────────
 const msgRetryCounterCache = { _m:new Map(), get(k){return this._m.get(k);}, set(k,v){this._m.set(k,v);} };
-let _pairingDone = false;
+let _pairingDone    = false;
+let _wasConnected  = false;
 const _downloadingUrls = new Set();
 
 function resetPairingState() { _pairingDone = false; }
@@ -405,21 +406,33 @@ async function startBot() {
                 console.log("Buka WA → Perangkat Tertaut → Tautkan dengan Nomor HP\n");
             } catch (e) { console.error("❌ Gagal request pairing code:", e.message); _pairingDone = false; }
         }
-        if (connection === "open") { resetPairingState(); console.log("✅ WA Bot aktif!\n"); }
-        if (connection === "close") {
-            _sock = null;
-            const errCode = lastDisconnect?.error?.output?.statusCode;
-            if (errCode === DisconnectReason.loggedOut) {
-                console.log("🔄 Logged out — clearing session...");
-                resetPairingState();
-                try { fs.rmSync(SESSION_DIR, { recursive:true, force:true }); } catch(_) {}
-                fs.mkdirSync(SESSION_DIR, { recursive:true });
-                setTimeout(startBot, 10000);
-                return;
-            }
-            console.log("↩️ Reconnecting...");
-            setTimeout(startBot, 5000);
-        }
+        if (connection === "open") {
+              _wasConnected = true;
+              resetPairingState();
+              console.log("✅ WA Bot aktif!\n");
+          }
+          if (connection === "close") {
+              _sock = null;
+              const errCode = lastDisconnect?.error?.output?.statusCode;
+              if (errCode === DisconnectReason.loggedOut) {
+                  if (_wasConnected) {
+                      // Beneran logout dari sesi aktif — hapus session dan mulai ulang
+                      console.log("🔄 Logged out — clearing session...");
+                      _wasConnected = false;
+                      resetPairingState();
+                      try { fs.rmSync(SESSION_DIR, { recursive:true, force:true }); } catch(_) {}
+                      fs.mkdirSync(SESSION_DIR, { recursive:true });
+                  } else {
+                      // Pairing code expired sebelum sempat connect — jangan hapus session, langsung retry
+                      console.log("⏰ Pairing code expired, generate ulang...");
+                      resetPairingState();
+                  }
+                  setTimeout(startBot, 3000);
+                  return;
+              }
+              console.log("↩️ Reconnecting...");
+              setTimeout(startBot, 5000);
+          }
     });
 
     const _seen = new Set();
