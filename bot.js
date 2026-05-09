@@ -283,7 +283,13 @@ async function handleMessage(sock, jid, msg) {
         if (_downloadingUrls.has(url)) return;
         _downloadingUrls.add(url);
 
-        let result = null, thumbFile = null;
+        // Langsung balas + react biar user tau bot lagi proses
+          await Promise.all([
+              reply(`⏳ Bentar ya, lagi download dari ${platform.emoji} *${platform.name}*...`),
+              react("⏳"),
+          ]);
+
+          let result = null, thumbFile = null;
 
         try {
             result = await downloadVideo(url);
@@ -297,7 +303,9 @@ async function handleMessage(sock, jid, msg) {
                 caption  : `*${title}*\n${fmtSize(result.size)}`,
                 ...(thumbFile ? { jpegThumbnail:fs.readFileSync(thumbFile) } : {}),
             }, { quoted:msg });
-        } catch (e) {
+                    await react("✅");
+  } catch (e) {
+            await react("❌");
             const hint = e.message?.includes("terlalu besar") ? "\n_coba .mp3 [link] untuk audio_" : "";
             await reply(`Gagal download:\n${e.message?.slice(0,200)}${hint}`);
         } finally {
