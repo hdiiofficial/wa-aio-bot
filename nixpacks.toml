@@ -1,0 +1,11 @@
+[phases.setup]
+nixPkgs = ["nodejs_20", "ffmpeg"]
+
+[phases.install]
+cmds = [
+  "npm install --legacy-peer-deps",
+  "npm install --platform=linux --arch=x64 sharp"
+]
+
+[start]
+cmd = "node bot.js"
