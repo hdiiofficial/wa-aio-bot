@@ -449,21 +449,36 @@ export async function downloadAudio(url) {
 }
 
 export async function extractThumbnail(videoFile) {
-    // Coba beberapa timestamp supaya tidak dapat frame hitam/abu-abu
-    const timestamps = ["00:00:03", "00:00:05", "00:00:01"];
-    for (const ts of timestamps) {
-        const thumbFile = videoFile.replace(/\.\w+$/, `_thumb.jpg`);
-        try {
-            await execFileAsync("ffmpeg", [
-                "-y", "-ss", ts, "-i", videoFile,
-                "-vframes", "1", "-q:v", "2",
-                "-vf", "scale=320:-2",
-                thumbFile,
-            ], { timeout:15_000 });
-            if (fs.existsSync(thumbFile) && fs.statSync(thumbFile).size > 5000) return thumbFile;
-            try { fs.unlinkSync(thumbFile); } catch(_) {}
-        } catch (_) {}
-    }
+    const thumbFile = videoFile.replace(/\.\w+$/, "_thumb.jpg");
+
+    // Cari durasi dulu biar bisa seek ke 10% video (bukan awal yang sering hitam)
+    let duration = 10;
+    try {
+        const { stdout } = await execFileAsync("ffprobe", [
+            "-v","error","-show_entries","format=duration",
+            "-of","default=noprint_wrappers=1:nokey=1", videoFile,
+        ], { timeout:8_000 });
+        const d = parseFloat(stdout.trim());
+        if (isFinite(d) && d > 0) duration = d;
+    } catch(_) {}
+
+    // Seek ke 10% durasi (minimal 1 detik, maksimal 10 detik)
+    const seekTo = Math.min(10, Math.max(1, duration * 0.1));
+
+    try {
+        await execFileAsync("ffmpeg", [
+            "-y",
+            "-ss", seekTo.toFixed(2),
+            "-i", videoFile,
+            "-vframes", "1",
+            "-q:v", "2",
+            "-vf", "scale=320:-2",
+            thumbFile,
+        ], { timeout:15_000 });
+        if (fs.existsSync(thumbFile) && fs.statSync(thumbFile).size > 3000) return thumbFile;
+        try { fs.unlinkSync(thumbFile); } catch(_) {}
+    } catch(_) {}
+
     return null;
 }
 
