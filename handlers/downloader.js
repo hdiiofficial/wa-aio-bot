@@ -135,8 +135,9 @@ async function downloadWithYtDlp(url, extraArgs = []) {
     const outTmpl = path.join(TMP, `${prefix}.%(ext)s`);
     const args    = [
         "--no-playlist", "--socket-timeout", "30", "--retries", "3",
-        "-f", "bestvideo[ext=mp4][vcodec!*=av01]+bestaudio[ext=m4a]/bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/mp4/best",
+        "-f", "bestvideo[ext=mp4][vcodec^=avc]+bestaudio[ext=m4a]/bestvideo[vcodec^=avc]+bestaudio/best[ext=mp4]/best",
         "--merge-output-format", "mp4",
+        "--postprocessor-args", "ffmpeg:-vcodec libx264 -acodec aac -movflags +faststart",
         "-o", outTmpl,
         ...getCookiesArgs(), ...extraArgs, url,
     ];
