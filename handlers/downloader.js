@@ -466,22 +466,26 @@ export async function extractThumbnail(videoFile) {
     // Seek ke 10% durasi (minimal 1 detik, maksimal 10 detik)
     const seekTo = Math.min(10, Math.max(1, duration * 0.1));
 
-    try {
-        await execFileAsync("ffmpeg", [
-            "-y",
-            "-ss", seekTo.toFixed(2),
-            "-i", videoFile,
-            "-vframes", "1",
-            "-q:v", "2",
-            "-vf", "scale=320:-2",
-            thumbFile,
-        ], { timeout:15_000 });
-        if (fs.existsSync(thumbFile) && fs.statSync(thumbFile).size > 3000) return thumbFile;
-        try { fs.unlinkSync(thumbFile); } catch(_) {}
-    } catch(_) {}
+    // Coba beberapa posisi seek, fallback ke frame 0 jika hasilnya abu-abu
+      for (const seek of [seekTo, 1, 0]) {
+          try {
+              await execFileAsync("ffmpeg", [
+                  "-y",
+                  "-ss", String(seek),
+                  "-i", videoFile,
+                  "-vframes", "1",
+                  "-q:v", "2",
+                  "-vf", "scale=320:-2,format=yuv420p",
+                  "-pix_fmt", "yuvj420p",
+                  thumbFile,
+              ], { timeout:15_000 });
+              if (fs.existsSync(thumbFile) && fs.statSync(thumbFile).size > 3000) return thumbFile;
+              try { fs.unlinkSync(thumbFile); } catch(_) {}
+          } catch(_) {}
+      }
 
-    return null;
-}
+      return null;
+  }
 
 export async function getVideoTitle(url) {
     const isYT = /youtube\.com|youtu\.be/i.test(url);
