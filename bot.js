@@ -258,16 +258,12 @@ async function handleMessage(sock, jid, msg) {
         const urlMatch = body.match(/https?:\/\/[^\s]+/i);
         if (!urlMatch) { await reply("Format: *.mp3 [link]*\nContoh: _.mp3 https://youtu.be/xxx_"); return; }
         const url = urlMatch[0];
-        const statusMsg = await reply("didownload bentar yaa 🎵");
         let result;
         try {
             result = await downloadAudio(url);
             await sock.sendMessage(jid, { audio:{ url:result.file }, mimetype:"audio/mpeg", ptt:false }, { quoted:msg });
-            await sock.sendMessage(jid, { delete:statusMsg.key }).catch(()=>{});
         } catch (e) {
-            await sock.sendMessage(jid, { text:`Gagal download audio:\n${e.message?.slice(0,200)}`, edit:statusMsg.key }).catch(()=>
-                reply(`Gagal download audio:\n${e.message?.slice(0,200)}`)
-            );
+            await reply(`Gagal download audio:\n${e.message?.slice(0,200)}`);
         } finally { if (result?.file) cleanFile(result.file); }
         return;
     }
@@ -287,7 +283,6 @@ async function handleMessage(sock, jid, msg) {
         if (_downloadingUrls.has(url)) return;
         _downloadingUrls.add(url);
 
-        const statusMsg = await reply("didownload bentar yaa ⏳");
         let result = null, thumbFile = null;
 
         try {
@@ -302,12 +297,9 @@ async function handleMessage(sock, jid, msg) {
                 caption  : `*${title}*\n${fmtSize(result.size)}`,
                 ...(thumbFile ? { jpegThumbnail:fs.readFileSync(thumbFile) } : {}),
             }, { quoted:msg });
-            await sock.sendMessage(jid, { delete:statusMsg.key }).catch(()=>{});
         } catch (e) {
             const hint = e.message?.includes("terlalu besar") ? "\n_coba .mp3 [link] untuk audio_" : "";
-            await sock.sendMessage(jid, { text:`Gagal download:\n${e.message?.slice(0,200)}${hint}`, edit:statusMsg.key }).catch(()=>
-                reply(`Gagal download:\n${e.message?.slice(0,200)}${hint}`)
-            );
+            await reply(`Gagal download:\n${e.message?.slice(0,200)}${hint}`);
         } finally {
             _downloadingUrls.delete(url);
             if (result?.file) cleanFile(result.file);
