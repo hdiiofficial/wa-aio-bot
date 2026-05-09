@@ -258,23 +258,16 @@ async function handleMessage(sock, jid, msg) {
         const urlMatch = body.match(/https?:\/\/[^\s]+/i);
         if (!urlMatch) { await reply("Format: *.mp3 [link]*\nContoh: _.mp3 https://youtu.be/xxx_"); return; }
         const url = urlMatch[0];
-        await react("⏳");
-        const statusMsg = await reply(renderBar(0));
+        const statusMsg = await reply("didownload bentar yaa 🎵");
         let result;
         try {
-            const timer = setTimeout(() => sock.sendMessage(jid, { text:renderBar(50), edit:statusMsg.key }).catch(()=>{}), 4000);
             result = await downloadAudio(url);
-            clearTimeout(timer);
-            await sock.sendMessage(jid, { text:renderBar(100), edit:statusMsg.key }).catch(()=>{});
-            let title = "";
-            try { title = await getVideoTitle(url); } catch(_) {}
-            if (!title) title = detectPlatform(url).name + " Audio";
             await sock.sendMessage(jid, { audio:{ url:result.file }, mimetype:"audio/mpeg", ptt:false }, { quoted:msg });
             await sock.sendMessage(jid, { delete:statusMsg.key }).catch(()=>{});
-            await react("✅");
         } catch (e) {
-            await sock.sendMessage(jid, { text:`Gagal download audio:\n${e.message?.slice(0,200)}`, edit:statusMsg.key }).catch(()=>{});
-            await react("❌");
+            await sock.sendMessage(jid, { text:`Gagal download audio:\n${e.message?.slice(0,200)}`, edit:statusMsg.key }).catch(()=>
+                reply(`Gagal download audio:\n${e.message?.slice(0,200)}`)
+            );
         } finally { if (result?.file) cleanFile(result.file); }
         return;
     }
@@ -290,22 +283,15 @@ async function handleMessage(sock, jid, msg) {
         const platform = detectPlatform(url);
         if (platform.name === "Website") return;
 
-        // ── URL lock: cegah video dikirim dobel ──────────────────────────────
+        // URL lock: cegah video dikirim dobel
         if (_downloadingUrls.has(url)) return;
         _downloadingUrls.add(url);
 
-        const statusMsg = await reply(renderBar(0));
+        const statusMsg = await reply("didownload bentar yaa ⏳");
         let result = null, thumbFile = null;
-        let pct = 0;
-        const timer = setInterval(() => {
-            pct = Math.min(85, pct + 15 + Math.floor(Math.random() * 10));
-            sock.sendMessage(jid, { text:renderBar(pct), edit:statusMsg.key }).catch(()=>{});
-        }, 6000);
 
         try {
             result = await downloadVideo(url);
-            clearInterval(timer);
-            await sock.sendMessage(jid, { text:renderBar(100), edit:statusMsg.key }).catch(()=>{});
             let title = result.title || "";
             if (!title) { try { title = await getVideoTitle(url); } catch(_) {} }
             if (!title) title = platform.name + " Video";
@@ -318,9 +304,10 @@ async function handleMessage(sock, jid, msg) {
             }, { quoted:msg });
             await sock.sendMessage(jid, { delete:statusMsg.key }).catch(()=>{});
         } catch (e) {
-            clearInterval(timer);
             const hint = e.message?.includes("terlalu besar") ? "\n_coba .mp3 [link] untuk audio_" : "";
-            await sock.sendMessage(jid, { text:`Gagal download:\n${e.message?.slice(0,200)}${hint}`, edit:statusMsg.key }).catch(()=>{});
+            await sock.sendMessage(jid, { text:`Gagal download:\n${e.message?.slice(0,200)}${hint}`, edit:statusMsg.key }).catch(()=>
+                reply(`Gagal download:\n${e.message?.slice(0,200)}${hint}`)
+            );
         } finally {
             _downloadingUrls.delete(url);
             if (result?.file) cleanFile(result.file);
