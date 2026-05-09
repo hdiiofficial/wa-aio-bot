@@ -262,10 +262,10 @@ async function handleMessage(sock, jid, msg) {
         const statusMsg = await reply(renderBar(0));
         let result;
         try {
-            const timer = setTimeout(() => sock.sendMessage(jid, { text:renderBar(50) }, { edit:statusMsg.key }).catch(()=>{}), 4000);
+            const timer = setTimeout(() => sock.sendMessage(jid, { text:renderBar(50), edit:statusMsg.key }).catch(()=>{}), 4000);
             result = await downloadAudio(url);
             clearTimeout(timer);
-            await sock.sendMessage(jid, { text:renderBar(100) }, { edit:statusMsg.key }).catch(()=>{});
+            await sock.sendMessage(jid, { text:renderBar(100), edit:statusMsg.key }).catch(()=>{});
             let title = "";
             try { title = await getVideoTitle(url); } catch(_) {}
             if (!title) title = detectPlatform(url).name + " Audio";
@@ -273,7 +273,7 @@ async function handleMessage(sock, jid, msg) {
             await sock.sendMessage(jid, { delete:statusMsg.key }).catch(()=>{});
             await react("✅");
         } catch (e) {
-            await sock.sendMessage(jid, { text:`Gagal download audio:\n${e.message?.slice(0,200)}` }, { edit:statusMsg.key }).catch(()=>{});
+            await sock.sendMessage(jid, { text:`Gagal download audio:\n${e.message?.slice(0,200)}`, edit:statusMsg.key }).catch(()=>{});
             await react("❌");
         } finally { if (result?.file) cleanFile(result.file); }
         return;
@@ -293,13 +293,13 @@ async function handleMessage(sock, jid, msg) {
         const statusMsg = await reply(renderBar(0));
         let result = null, thumbFile = null;
         const timer = setInterval(() => {
-            sock.sendMessage(jid, { text:renderBar(Math.min(85, 20 + Math.floor(Math.random()*30))) }, { edit:statusMsg.key }).catch(()=>{});
+            sock.sendMessage(jid, { text:renderBar(Math.min(85, 20 + Math.floor(Math.random()*30))), edit:statusMsg.key }).catch(()=>{});
         }, 5000);
 
         try {
             result = await downloadVideo(url);
             clearInterval(timer);
-            await sock.sendMessage(jid, { text:renderBar(100) }, { edit:statusMsg.key }).catch(()=>{});
+            await sock.sendMessage(jid, { text:renderBar(100), edit:statusMsg.key }).catch(()=>{});
             let title = result.title || "";
             if (!title) { try { title = await getVideoTitle(url); } catch(_) {} }
             if (!title) title = platform.name + " Video";
@@ -315,7 +315,7 @@ async function handleMessage(sock, jid, msg) {
         } catch (e) {
             clearInterval(timer);
             let hint = e.message?.includes("terlalu besar") ? "\n_coba .mp3 [link] untuk audio_" : "";
-            await sock.sendMessage(jid, { text:`Gagal download:\n${e.message?.slice(0,200)}${hint}` }, { edit:statusMsg.key }).catch(()=>{});
+            await sock.sendMessage(jid, { text:`Gagal download:\n${e.message?.slice(0,200)}${hint}`, edit:statusMsg.key }).catch(()=>{});
             await react("❌");
         } finally {
             if (result?.file) cleanFile(result.file);
