@@ -290,11 +290,17 @@ async function handleMessage(sock, jid, msg) {
         const platform = detectPlatform(url);
         if (platform.name === "Website") return;
 
+        // ── URL lock: cegah video dikirim dobel ──────────────────────────────
+        if (_downloadingUrls.has(url)) return;
+        _downloadingUrls.add(url);
+
         const statusMsg = await reply(renderBar(0));
         let result = null, thumbFile = null;
+        let pct = 0;
         const timer = setInterval(() => {
-            sock.sendMessage(jid, { text:renderBar(Math.min(85, 20 + Math.floor(Math.random()*30))), edit:statusMsg.key }).catch(()=>{});
-        }, 5000);
+            pct = Math.min(85, pct + 15 + Math.floor(Math.random() * 10));
+            sock.sendMessage(jid, { text:renderBar(pct), edit:statusMsg.key }).catch(()=>{});
+        }, 6000);
 
         try {
             result = await downloadVideo(url);
@@ -305,19 +311,18 @@ async function handleMessage(sock, jid, msg) {
             if (!title) title = platform.name + " Video";
             thumbFile = await extractThumbnail(result.file);
             await sock.sendMessage(jid, {
-                video         : fs.readFileSync(result.file),
-                mimetype      : "video/mp4",
-                caption       : `*${title}*\n${fmtSize(result.size)}\n_ketik .mp3 [link] untuk audio_`,
+                video    : fs.readFileSync(result.file),
+                mimetype : "video/mp4",
+                caption  : `*${title}*\n${fmtSize(result.size)}`,
                 ...(thumbFile ? { jpegThumbnail:fs.readFileSync(thumbFile) } : {}),
             }, { quoted:msg });
             await sock.sendMessage(jid, { delete:statusMsg.key }).catch(()=>{});
-            await react("✅");
         } catch (e) {
             clearInterval(timer);
-            let hint = e.message?.includes("terlalu besar") ? "\n_coba .mp3 [link] untuk audio_" : "";
+            const hint = e.message?.includes("terlalu besar") ? "\n_coba .mp3 [link] untuk audio_" : "";
             await sock.sendMessage(jid, { text:`Gagal download:\n${e.message?.slice(0,200)}${hint}`, edit:statusMsg.key }).catch(()=>{});
-            await react("❌");
         } finally {
+            _downloadingUrls.delete(url);
             if (result?.file) cleanFile(result.file);
             if (thumbFile) cleanFile(thumbFile);
         }
@@ -373,6 +378,7 @@ app.listen(PORT, () => console.log(`🌐 HTTP server aktif di port ${PORT}`));
 // ── WA Connection ─────────────────────────────────────────────────────────────
 const msgRetryCounterCache = { _m:new Map(), get(k){return this._m.get(k);}, set(k,v){this._m.set(k,v);} };
 let _pairingDone = false;
+const _downloadingUrls = new Set();
 
 function resetPairingState() { _pairingDone = false; }
 
