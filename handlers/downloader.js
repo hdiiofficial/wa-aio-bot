@@ -589,51 +589,29 @@ export async function downloadAudio(url) {
 }
 
 export async function extractThumbnail(videoFile) {
-    const thumbFile = videoFile.replace(/\.\w+$/, "_thumb.jpg");
+    const thumbFile = videoFile.replace(/.w+$/, '_thumb.jpg');
+    console.log('[THUMB] start, file:', videoFile);
 
-    let duration = 10;
-    try {
-        const { stdout } = await execFileAsync("ffprobe", [
-            "-v","error","-show_entries","format=duration",
-            "-of","default=noprint_wrappers=1:nokey=1", videoFile,
-        ], { timeout:8_000 });
-        const d = parseFloat(stdout.trim());
-        if (isFinite(d) && d > 0) duration = d;
-    } catch(_) {}
-
-    const seekTo = Math.min(10, Math.max(1, duration * 0.1));
-
-    try {
-        await execFileAsync("ffmpeg", [
-            "-y",
-            "-i", videoFile,
-            "-vf", "thumbnail=300,scale=100:-2,format=yuv420p",
-            "-pix_fmt", "yuvj420p",
-            "-vframes", "1",
-            "-q:v", "2",
-            thumbFile,
-        ], { timeout:30_000 });
-        if (fs.existsSync(thumbFile) && fs.statSync(thumbFile).size > 500) return thumbFile;
-        try { fs.unlinkSync(thumbFile); } catch(_) {}
-    } catch(_) {}
-
-    for (const seek of [seekTo, 1, 0]) {
+    // Simple fast extraction: seek 1s, scale to 100px, JPEG q5
+    for (const seek of [1, 0.5, 0]) {
         try {
-            await execFileAsync("ffmpeg", [
-                "-y",
-                "-ss", String(seek),
-                "-i", videoFile,
-                "-vframes", "1",
-                "-q:v", "2",
-                "-vf", "scale=100:-2,format=yuv420p",
-                "-pix_fmt", "yuvj420p",
+            await execFileAsync('ffmpeg', [
+                '-y',
+                '-ss', String(seek),
+                '-i', videoFile,
+                '-vframes', '1',
+                '-vf', 'scale=100:-2',
+                '-q:v', '5',
                 thumbFile,
-            ], { timeout:15_000 });
-            if (fs.existsSync(thumbFile) && fs.statSync(thumbFile).size > 500) return thumbFile;
+            ], { timeout: 15_000 });
+            const sz = fs.existsSync(thumbFile) ? fs.statSync(thumbFile).size : 0;
+            console.log('[THUMB] seek=' + seek + ' size=' + sz);
+            if (sz > 200) { console.log('[THUMB] OK →', thumbFile); return thumbFile; }
             try { fs.unlinkSync(thumbFile); } catch(_) {}
-        } catch(_) {}
+        } catch(e) { console.log('[THUMB] seek=' + seek + ' err:', e.message.slice(0,80)); }
     }
 
+    console.log('[THUMB] all failed, returning null');
     return null;
 }
 
