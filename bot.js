@@ -283,8 +283,8 @@ async function handleMessage(sock, jid, msg) {
         if (_downloadingUrls.has(url)) return;
         _downloadingUrls.add(url);
 
-        // Persis pola iwa3: reply bentar ya ke msg, video juga quoted ke msg
-          await reply(`⏳ Bentar ya, lagi download dari ${platform.emoji} *${platform.name}*...`);
+        // Kirim pesan tunggu → simpan key → hapus setelah video terkirim
+          const waitMsg = await reply(`⏳ Bentar ya, lagi download dari ${platform.emoji} *${platform.name}*...`);
           await react("⏳");
 
           let result = null, thumbFile = null;
@@ -295,6 +295,8 @@ async function handleMessage(sock, jid, msg) {
             if (!title) { try { title = await getVideoTitle(url); } catch(_) {} }
             if (!title) title = platform.name + " Video";
             thumbFile = await extractThumbnail(result.file);
+            // Hapus pesan tunggu dulu baru kirim video
+            try { await sock.sendMessage(jid, { delete: waitMsg.key }); } catch(_) {}
             await sock.sendMessage(jid, {
                 video    : fs.readFileSync(result.file),
                 mimetype : "video/mp4",
@@ -304,6 +306,7 @@ async function handleMessage(sock, jid, msg) {
             await react("✅");
   } catch (e) {
             await react("❌");
+            try { await sock.sendMessage(jid, { delete: waitMsg.key }); } catch(_) {}
             const hint = e.message?.includes("terlalu besar") ? "\n_coba .mp3 [link] untuk audio_" : "";
             await reply(`Gagal download:\n${e.message?.slice(0,200)}${hint}`);
         } finally {
