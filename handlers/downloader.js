@@ -607,7 +607,7 @@ export async function extractThumbnail(videoFile) {
         await execFileAsync("ffmpeg", [
             "-y",
             "-i", videoFile,
-            "-vf", "thumbnail=300,scale=320:-2,format=yuv420p",
+            "-vf", "thumbnail=300,scale=100:-2,format=yuv420p",
             "-pix_fmt", "yuvj420p",
             "-vframes", "1",
             "-q:v", "2",
@@ -625,7 +625,7 @@ export async function extractThumbnail(videoFile) {
                 "-i", videoFile,
                 "-vframes", "1",
                 "-q:v", "2",
-                "-vf", "scale=320:-2,format=yuv420p",
+                "-vf", "scale=100:-2,format=yuv420p",
                 "-pix_fmt", "yuvj420p",
                 thumbFile,
             ], { timeout:15_000 });
