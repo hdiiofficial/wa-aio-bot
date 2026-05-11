@@ -589,7 +589,8 @@ export async function downloadAudio(url) {
 }
 
 export async function extractThumbnail(videoFile) {
-    const thumbFile = videoFile.replace(/.w+$/, '_thumb.jpg');
+    const dotIdx = videoFile.lastIndexOf('.');
+    const thumbFile = (dotIdx > -1 ? videoFile.slice(0, dotIdx) : videoFile) + '_thumb.jpg';
     console.log('[THUMB] start, file:', videoFile);
 
     // Simple fast extraction: seek 1s, scale to 100px, JPEG q5
