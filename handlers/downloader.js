@@ -2,7 +2,7 @@
  * Downloader — sama persis dengan bot Telegram
  *
  * TikTok    → @tobyg74/tiktok-api-dl v3 | fallback: TikWM | fallback: SnapTik
- * Instagram → yt-dlp
+ * Instagram → yt-dlp (+ headers) | fallback: saveig.app | fallback: snapinsta.app
  * YouTube   → play-dl primary | fallback: yt-dlp
  * Facebook  → yt-dlp | fallback: SnapSave
  * Twitter/X → yt-dlp | fallback: fxtwitter API
@@ -316,9 +316,148 @@ async function downloadTikTok(url) {
     return await downloadTikTokViaSnapTik(url);
 }
 
-// ── Instagram → yt-dlp ───────────────────────────────────────────────────────
+// ── Instagram: yt-dlp + fallback ke saveig & snapinsta ───────────────────────
+
+async function downloadInstagramViaYtDlp(url) {
+    const extraArgs = [
+        "--add-header", "Referer:https://www.instagram.com/",
+        "--add-header", "Accept:text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+        "--add-header", "Accept-Language:en-US,en;q=0.5",
+        "--no-check-certificates",
+    ];
+    // Pakai cookies Instagram jika tersedia
+    const igCookies = process.env.INSTAGRAM_COOKIES_FILE;
+    if (igCookies && fs.existsSync(igCookies)) {
+        extraArgs.push("--cookies", igCookies);
+    }
+    return await downloadWithYtDlp(url, extraArgs);
+}
+
+async function downloadInstagramViaSaveig(url) {
+    const res = await fetch("https://v3.saveig.app/api/ajaxSearch", {
+        method: "POST",
+        headers: {
+            "Content-Type" : "application/x-www-form-urlencoded; charset=UTF-8",
+            "User-Agent"   : "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36",
+            "Referer"      : "https://saveig.app/",
+            "Origin"       : "https://saveig.app",
+            "X-Requested-With": "XMLHttpRequest",
+        },
+        body: `q=${encodeURIComponent(url)}&t=media&lang=en`,
+        signal: AbortSignal.timeout(25_000),
+    });
+    const data = await res.json();
+    if (!data?.data) throw new Error("saveig: respons kosong");
+    const html = data.data;
+
+    // Cari URL video dari atribut href
+    const videoUrls = [...html.matchAll(/href="(https?:\/\/[^"]+)"/gi)]
+        .map(m => m[1].replace(/&amp;/g, "&"))
+        .filter(u => u.includes("video") || u.includes(".mp4") || u.includes("cdninstagram") || u.includes("fbcdn"));
+
+    if (!videoUrls.length) throw new Error("saveig: tidak ada URL video");
+    for (const videoUrl of videoUrls.slice(0, 4)) {
+        try {
+            const dest = path.join(TMP, `${Date.now()}_ig.mp4`);
+            await downloadFromUrl(videoUrl, dest, 10, {
+                "Referer": "https://saveig.app/",
+                "Accept" : "video/mp4,video/*;q=0.9,*/*;q=0.8",
+            });
+            const stat = fs.statSync(dest);
+            if (stat.size < 10_000) { cleanFile(dest); continue; }
+            if (!await isValidVideo(dest)) { cleanFile(dest); continue; }
+            console.log("✅ Instagram via saveig");
+            return { file: dest, size: stat.size, ext: "mp4", isImage: false };
+        } catch (e) { console.log(`⚠️  saveig url gagal: ${e.message?.slice(0,60)}`); }
+    }
+    throw new Error("saveig: semua URL gagal");
+}
+
+async function downloadInstagramViaSnapinsta(url) {
+    // Ambil token CSRF dari halaman utama
+    const homeRes = await fetch("https://snapinsta.app/", {
+        headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36" },
+        signal: AbortSignal.timeout(15_000),
+    });
+    const homeHtml = await homeRes.text();
+    const token = homeHtml.match(/name="token"\s+value="([^"]+)"/)?.[1]
+        || homeHtml.match(/"token"\s*:\s*"([^"]+)"/)?.[1];
+    if (!token) throw new Error("snapinsta: token tidak ditemukan");
+
+    const actionRes = await fetch("https://snapinsta.app/action.php", {
+        method: "POST",
+        headers: {
+            "Content-Type"    : "application/x-www-form-urlencoded",
+            "User-Agent"      : "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36",
+            "Referer"         : "https://snapinsta.app/",
+            "Origin"          : "https://snapinsta.app",
+            "X-Requested-With": "XMLHttpRequest",
+        },
+        body: `url=${encodeURIComponent(url)}&token=${token}&lang=en`,
+        signal: AbortSignal.timeout(25_000),
+    });
+    const result = await actionRes.json();
+    const html = result?.data || "";
+
+    const videoUrls = [...html.matchAll(/href="(https?:\/\/[^"]+)"/gi)]
+        .map(m => m[1].replace(/&amp;/g, "&"))
+        .filter(u => u.includes(".mp4") || u.includes("cdninstagram") || u.includes("fbcdn") || u.includes("instagram"));
+
+    if (!videoUrls.length) throw new Error("snapinsta: tidak ada URL video");
+    for (const videoUrl of videoUrls.slice(0, 4)) {
+        try {
+            const dest = path.join(TMP, `${Date.now()}_ig2.mp4`);
+            await downloadFromUrl(videoUrl, dest, 10, { "Referer": "https://snapinsta.app/" });
+            const stat = fs.statSync(dest);
+            if (stat.size < 10_000) { cleanFile(dest); continue; }
+            if (!await isValidVideo(dest)) { cleanFile(dest); continue; }
+            console.log("✅ Instagram via snapinsta");
+            return { file: dest, size: stat.size, ext: "mp4", isImage: false };
+        } catch (e) { console.log(`⚠️  snapinsta url gagal: ${e.message?.slice(0,60)}`); }
+    }
+    throw new Error("snapinsta: semua URL gagal");
+}
+
+async function downloadInstagramViaIgram(url) {
+    const res = await fetch("https://igram.world/api/convert", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "User-Agent"  : "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36",
+            "Referer"     : "https://igram.world/",
+            "Origin"      : "https://igram.world",
+        },
+        body: JSON.stringify({ url }),
+        signal: AbortSignal.timeout(25_000),
+    });
+    const data = await res.json();
+    const media = Array.isArray(data) ? data : data?.media || data?.data || [];
+    const videos = media.filter(m => m.type === "video" || m.url?.includes(".mp4") || m.quality?.includes("p"));
+    if (!videos.length) throw new Error("igram: tidak ada video");
+    for (const v of videos.slice(0, 3)) {
+        const videoUrl = v.url || v.download_url;
+        if (!videoUrl) continue;
+        try {
+            const dest = path.join(TMP, `${Date.now()}_igram.mp4`);
+            await downloadFromUrl(videoUrl, dest, 10, { "Referer": "https://igram.world/" });
+            const stat = fs.statSync(dest);
+            if (stat.size < 10_000) { cleanFile(dest); continue; }
+            if (!await isValidVideo(dest)) { cleanFile(dest); continue; }
+            console.log("✅ Instagram via igram.world");
+            return { file: dest, size: stat.size, ext: "mp4", isImage: false };
+        } catch (e) { console.log(`⚠️  igram url gagal: ${e.message?.slice(0,60)}`); }
+    }
+    throw new Error("igram: semua URL gagal");
+}
+
 async function downloadInstagram(url) {
-    return await downloadWithYtDlp(url);
+    try { return await downloadInstagramViaYtDlp(url); }
+    catch (e) { console.log(`⚠️  Instagram yt-dlp gagal (${e.message?.slice(0,80)}), fallback saveig…`); }
+    try { return await downloadInstagramViaSaveig(url); }
+    catch (e) { console.log(`⚠️  Instagram saveig gagal (${e.message?.slice(0,80)}), fallback igram…`); }
+    try { return await downloadInstagramViaIgram(url); }
+    catch (e) { console.log(`⚠️  Instagram igram gagal (${e.message?.slice(0,80)}), fallback snapinsta…`); }
+    return await downloadInstagramViaSnapinsta(url);
 }
 
 // ── YouTube → play-dl primary + yt-dlp fallback ──────────────────────────────
@@ -452,7 +591,6 @@ export async function downloadAudio(url) {
 export async function extractThumbnail(videoFile) {
     const thumbFile = videoFile.replace(/\.\w+$/, "_thumb.jpg");
 
-    // Cari durasi dulu biar bisa seek ke 10% video (bukan awal yang sering hitam)
     let duration = 10;
     try {
         const { stdout } = await execFileAsync("ffprobe", [
@@ -463,44 +601,41 @@ export async function extractThumbnail(videoFile) {
         if (isFinite(d) && d > 0) duration = d;
     } catch(_) {}
 
-    // Seek ke 10% durasi (minimal 1 detik, maksimal 10 detik)
     const seekTo = Math.min(10, Math.max(1, duration * 0.1));
 
-    // Prioritas 1: pakai thumbnail filter ffmpeg (otomatis pilih frame paling representatif)
-      try {
-          await execFileAsync("ffmpeg", [
-              "-y",
-              "-i", videoFile,
-              "-vf", "thumbnail=300,scale=320:-2,format=yuv420p",
-              "-pix_fmt", "yuvj420p",
-              "-vframes", "1",
-              "-q:v", "2",
-              thumbFile,
-          ], { timeout:30_000 });
-          if (fs.existsSync(thumbFile) && fs.statSync(thumbFile).size > 3000) return thumbFile;
-          try { fs.unlinkSync(thumbFile); } catch(_) {}
-      } catch(_) {}
+    try {
+        await execFileAsync("ffmpeg", [
+            "-y",
+            "-i", videoFile,
+            "-vf", "thumbnail=300,scale=320:-2,format=yuv420p",
+            "-pix_fmt", "yuvj420p",
+            "-vframes", "1",
+            "-q:v", "2",
+            thumbFile,
+        ], { timeout:30_000 });
+        if (fs.existsSync(thumbFile) && fs.statSync(thumbFile).size > 3000) return thumbFile;
+        try { fs.unlinkSync(thumbFile); } catch(_) {}
+    } catch(_) {}
 
-      // Fallback: seek ke beberapa posisi jika thumbnail filter gagal
-      for (const seek of [seekTo, 1, 0]) {
-          try {
-              await execFileAsync("ffmpeg", [
-                  "-y",
-                  "-ss", String(seek),
-                  "-i", videoFile,
-                  "-vframes", "1",
-                  "-q:v", "2",
-                  "-vf", "scale=320:-2,format=yuv420p",
-                  "-pix_fmt", "yuvj420p",
-                  thumbFile,
-              ], { timeout:15_000 });
-              if (fs.existsSync(thumbFile) && fs.statSync(thumbFile).size > 3000) return thumbFile;
-              try { fs.unlinkSync(thumbFile); } catch(_) {}
-          } catch(_) {}
-      }
+    for (const seek of [seekTo, 1, 0]) {
+        try {
+            await execFileAsync("ffmpeg", [
+                "-y",
+                "-ss", String(seek),
+                "-i", videoFile,
+                "-vframes", "1",
+                "-q:v", "2",
+                "-vf", "scale=320:-2,format=yuv420p",
+                "-pix_fmt", "yuvj420p",
+                thumbFile,
+            ], { timeout:15_000 });
+            if (fs.existsSync(thumbFile) && fs.statSync(thumbFile).size > 3000) return thumbFile;
+            try { fs.unlinkSync(thumbFile); } catch(_) {}
+        } catch(_) {}
+    }
 
-      return null;
-  }
+    return null;
+}
 
 export async function getVideoTitle(url) {
     const isYT = /youtube\.com|youtu\.be/i.test(url);
