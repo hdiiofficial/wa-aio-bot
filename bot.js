@@ -284,7 +284,7 @@ async function handleMessage(sock, jid, msg) {
         _downloadingUrls.add(url);
 
         // Kirim pesan tunggu, lalu video nyusul tanpa quoted
-          await reply(`⏳ Bentar ya, lagi download dari ${platform.emoji} *${platform.name}*...`);
+          const waitingMsg = await reply(`⏳ Bentar ya, lagi download dari ${platform.emoji} *${platform.name}*...`);
           await react("⏳");
 
           let result = null, thumbFile = null;
@@ -300,7 +300,7 @@ async function handleMessage(sock, jid, msg) {
                 mimetype : "video/mp4",
                 caption  : `*${title}*\n${fmtSize(result.size)}`,
                 ...(thumbFile ? { jpegThumbnail:fs.readFileSync(thumbFile) } : {}),
-            });
+            }, { quoted: waitingMsg });
             await react("✅");
   } catch (e) {
             await react("❌");
