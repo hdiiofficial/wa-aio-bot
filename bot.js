@@ -283,11 +283,8 @@ async function handleMessage(sock, jid, msg) {
         if (_downloadingUrls.has(url)) return;
         _downloadingUrls.add(url);
 
-        // Langsung balas + react biar user tau bot lagi proses
-          await Promise.all([
-              reply(`⏳ Bentar ya, lagi download dari ${platform.emoji} *${platform.name}*...`),
-              react("⏳"),
-          ]);
+        // React ⏳ saja — tanpa teks, biar chat bersih
+          await react("⏳");
 
           let result = null, thumbFile = null;
 
