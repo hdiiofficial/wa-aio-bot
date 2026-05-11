@@ -283,7 +283,8 @@ async function handleMessage(sock, jid, msg) {
         if (_downloadingUrls.has(url)) return;
         _downloadingUrls.add(url);
 
-        // React ⏳ saja — tanpa teks, biar chat bersih
+        // Kirim pesan tunggu, lalu video nyusul tanpa quoted
+          await reply(`⏳ Bentar ya, lagi download dari ${platform.emoji} *${platform.name}*...`);
           await react("⏳");
 
           let result = null, thumbFile = null;
@@ -299,8 +300,8 @@ async function handleMessage(sock, jid, msg) {
                 mimetype : "video/mp4",
                 caption  : `*${title}*\n${fmtSize(result.size)}`,
                 ...(thumbFile ? { jpegThumbnail:fs.readFileSync(thumbFile) } : {}),
-            }, { quoted:msg });
-                    await react("✅");
+            });
+            await react("✅");
   } catch (e) {
             await react("❌");
             const hint = e.message?.includes("terlalu besar") ? "\n_coba .mp3 [link] untuk audio_" : "";
