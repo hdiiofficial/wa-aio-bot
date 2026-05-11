@@ -283,7 +283,8 @@ async function handleMessage(sock, jid, msg) {
         if (_downloadingUrls.has(url)) return;
         _downloadingUrls.add(url);
 
-        // Kirim pesan tunggu, lalu video nyusul tanpa quoted
+        // Persis pola iwa3: reply bentar ya ke msg, video juga quoted ke msg
+          await reply(`⏳ Bentar ya, lagi download dari ${platform.emoji} *${platform.name}*...`);
           await react("⏳");
 
           let result = null, thumbFile = null;
