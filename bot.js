@@ -296,6 +296,7 @@ async function handleMessage(sock, jid, msg) {
             if (!title) { try { title = await getVideoTitle(url); } catch(_) {} }
             if (!title) title = platform.name + " Video";
             thumbFile = await extractThumbnail(result.file);
+            console.log("[THUMB-BOT] thumbFile:", thumbFile, thumbFile ? require("fs").statSync(thumbFile).size+"B" : "null");
             // Hapus pesan tunggu — log error kalau gagal
             if (waitMsg?.key) {
                 const delResult = await sock.sendMessage(jid, { delete: waitMsg.key }).catch(e => { console.log('[DELETE-DEBUG] delete gagal:', e.message); return null; });
