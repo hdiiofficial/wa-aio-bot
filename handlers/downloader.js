@@ -613,7 +613,7 @@ export async function extractThumbnail(videoFile) {
             "-q:v", "2",
             thumbFile,
         ], { timeout:30_000 });
-        if (fs.existsSync(thumbFile) && fs.statSync(thumbFile).size > 3000) return thumbFile;
+        if (fs.existsSync(thumbFile) && fs.statSync(thumbFile).size > 500) return thumbFile;
         try { fs.unlinkSync(thumbFile); } catch(_) {}
     } catch(_) {}
 
@@ -629,7 +629,7 @@ export async function extractThumbnail(videoFile) {
                 "-pix_fmt", "yuvj420p",
                 thumbFile,
             ], { timeout:15_000 });
-            if (fs.existsSync(thumbFile) && fs.statSync(thumbFile).size > 3000) return thumbFile;
+            if (fs.existsSync(thumbFile) && fs.statSync(thumbFile).size > 500) return thumbFile;
             try { fs.unlinkSync(thumbFile); } catch(_) {}
         } catch(_) {}
     }
