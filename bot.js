@@ -279,7 +279,7 @@ if (lower.startsWith(".donasi")) {
             reff_id: reffId,
             nominal: nominal,
             type: "ewallet",
-            method: "qris"
+            method: "QRIS"
         });
 
         const res = await axios.post(
@@ -432,6 +432,82 @@ app.get("/pair", async (req, res) => {
         console.log(`\n📱 Pairing Code: ${code} (${phone})`);
         res.json({ phone, code, petunjuk:"Buka WA → Perangkat Tertaut → Tautkan dengan Nomor HP" });
     } catch (e) { res.status(500).json({ error:e.message }); }
+});
+
+// ── PAYMENT CALLBACK ─────────────────────────────────────────────
+app.post("/callback", express.json(), async (req, res) => {
+    try {
+        const body = req.body;
+
+        console.log("📥 CALLBACK:", body);
+
+        const event = body.event;
+        const status = body.status;
+        const data = body.data;
+
+        if (event !== "deposit" || !data) {
+            return res.json({ ok: true });
+        }
+
+        const reffId = data.reff_id;
+        const nominal = data.nominal;
+        const trxStatus = data.status; // ini lebih valid
+
+        if (!reffId) {
+            return res.status(400).json({ error: "no reff_id" });
+        }
+
+        // 🔥 parsing jid dari reff_id
+        // format kita: DONASI-timestamp-jid
+        const parts = reffId.split("-");
+        const jid = parts.slice(2).join("-");
+
+        if (!jid) {
+            console.log("❌ JID tidak ditemukan dari reff_id");
+            return res.json({ ok: true });
+        }
+
+        // ======================
+        // STATUS SUCCESS
+        // ======================
+        if (trxStatus === "success") {
+            if (_sock) {
+                await _sock.sendMessage(jid, {
+                    text:
+`✅ *DONASI BERHASIL*
+
+💰 Rp${Number(nominal).toLocaleString("id-ID")}
+
+Terima kasih banyak ❤️`
+                });
+            }
+        }
+
+        // ======================
+        // STATUS PROCESSING
+        // ======================
+        if (trxStatus === "processing") {
+            // optional (biasanya ga perlu spam user)
+            console.log(`⏳ ${reffId} masih processing`);
+        }
+
+        // ======================
+        // STATUS GAGAL / EXPIRED
+        // ======================
+        if (trxStatus === "failed" || trxStatus === "expired") {
+            if (_sock) {
+                await _sock.sendMessage(jid, {
+                    text: "⚠️ Donasi gagal / expired"
+                });
+            }
+        }
+
+        res.json({ ok: true });
+
+    } catch (err) {
+        console.error("Callback error:", err);
+        res.status(500).json({ error: "internal error" });
+    }
 });
 
 app.listen(PORT, () => console.log(`🌐 HTTP server aktif di port ${PORT}`));
