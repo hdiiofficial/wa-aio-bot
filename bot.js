@@ -256,6 +256,70 @@ Powered by @HADI.ft.Vincent
         return;
     }
 
+    // ── .donasi ───────────────────────────────────────────────────────────────
+if (lower.startsWith(".donasi")) {
+    const args = body.split(/\s+/);
+    const nominal = parseInt(args[1]);
+
+    if (!nominal || nominal < 1000) {
+        await reply("Format: *.donasi nominal*\nContoh: _.donasi 50000_\nMinimal 1000");
+        return;
+    }
+
+    await react("⏳");
+
+    try {
+        const axios = (await import("axios")).default;
+        const qs = (await import("qs")).default;
+
+        const reffId = `DONASI-${Date.now()}-${jid}`;
+
+        const payload = qs.stringify({
+            api_key: process.env.API_KEY,
+            reff_id: reffId,
+            nominal: nominal,
+            type: "ewallet",
+            method: "qris"
+        });
+
+        const res = await axios.post(
+            "https://atlantich2h.com/deposit/create",
+            payload,
+            {
+                headers: {
+                    "Content-Type": "application/x-www-form-urlencoded"
+                }
+            }
+        );
+
+        const data = res.data;
+
+        if (!data.status) {
+            throw new Error(data.message);
+        }
+
+        await sock.sendMessage(jid, {
+            image: { url: data.data.qr_image },
+            caption:
+`🙏 *DONASI*
+
+💰 Rp${nominal.toLocaleString("id-ID")}
+📌 ID: ${reffId}
+
+Scan QR di atas ya ❤️`
+        }, { quoted: msg });
+
+        await react("✅");
+
+    } catch (e) {
+        console.error(e);
+        await reply("❌ Gagal membuat donasi");
+        await react("❌");
+    }
+
+    return;
+}
+
     // ── .mp3 ─────────────────────────────────────────────────────────────────
     if (lower.startsWith(".mp3")) {
         const urlMatch = body.match(/https?:\/\/[^\s]+/i);
