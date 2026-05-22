@@ -110,7 +110,7 @@ async function handleMessage(sock, jid, msg) {
     // ── .menu ─────────────────────────────────────────────────────────────────
     if (lower === ".menu" || lower === ".help" || lower === ".start") {
         await reply(
-`── WA All-In-One Bot ────────────────
+`── HADES TECH Bot ────────────────
 *Download Video*
   Kirim link langsung → auto download
   Platform: YouTube, TikTok, Instagram, Facebook, Twitter/X, Reddit, dll
@@ -136,6 +136,9 @@ async function handleMessage(sock, jid, msg) {
 
 *QR Code*
   *.qr [teks/link]*
+
+
+Powered by @HADI.ft.Vincent
 ────────────────────────────────────`
         );
         return;
@@ -446,7 +449,7 @@ async function startBot() {
     sock.ev.on("messages.upsert", async ({ messages, type }) => {
         if (type !== "notify") return;
         for (const msg of messages) {
-            if (msg.key.fromMe) continue;
+            //if (msg.key.fromMe) continue;
             const msgId = msg.key.id;
             if (!msgId || _seen.has(msgId) || _proc.has(msgId)) continue;
             _seen.add(msgId);
