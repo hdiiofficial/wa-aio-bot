@@ -31,7 +31,7 @@ import { generateQR } from "./handlers/qr.js";
 const execFileAsync = promisify(execFile);
 const __dirname     = path.dirname(fileURLToPath(import.meta.url));
 
-const OWNER_PHONE = process.env.OWNER_PHONE || "62895401509576";
+const OWNER_PHONE = process.env.OWNER_PHONE || "628700921759";
 const SESSION_DIR = path.join(__dirname, "session");
 const DATA_DIR    = path.join(__dirname, "data");
 
