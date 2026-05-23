@@ -277,7 +277,7 @@ if (lower.startsWith(".donasi")) {
         const reffId = `DONASI-${Date.now()}-${safeJid}`;
 
         const payload = new URLSearchParams();
-        payload.append("api_key", process.env.API_KEY);
+        payload.append("api_key", " fXwboDH5A2MoHJCp49buHNxTURHQe7zI2nOeGjb14S73cWcMo7HAIXXFLTCUd44Uh39awOxEBCChmds09prj5DrVzORlXxwPPXpw");
         payload.append("reff_id", reffId);
         payload.append("nominal", String(nominal));
         payload.append("type", "ewallet");
