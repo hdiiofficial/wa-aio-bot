@@ -305,7 +305,7 @@ Scan QR di atas ya ❤️`
         await react("✅");
 
     } catch (e) {
-        await reply("DONASI ERROR:", e.response?.data || e.message);
+        await console.log("DONASI ERROR:", e.response?.data || e.message);
 
         await react("❌");
         await reply("❌ Gagal membuat transaksi");
