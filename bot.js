@@ -411,7 +411,7 @@ Scan QR di atas ya ❤️`
 }
 
 // ── HTTP Server ───────────────────────────────────────────────────────────────
-let _sock = null;
+let _sock = global._sock;
 const app  = express();
 const PORT = process.env.PORT || 3000;
 
@@ -530,7 +530,7 @@ async function startBot() {
         fireInitQueries      : true,
     });
 
-    _sock = sock;
+    global._sock = sock;
     sock.ev.on("creds.update", saveCreds);
 
     sock.ev.on("connection.update", async ({ connection, lastDisconnect, qr }) => {
