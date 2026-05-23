@@ -258,10 +258,10 @@ Powered by @HADI.ft.Vincent
 
     // ── .donasi ───────────────────────────────────────────────────────────────
 if (lower.startsWith(".donasi")) {
-    const args = body.split(/\s+/);
-    const nominal = parseInt(args[1]);
+    const args = body.trim().split(/\s+/);
+    const nominal = Number(args[1]);
 
-    if (!nominal || nominal < 1000) {
+    if (!args[1] || isNaN(nominal) || nominal < 1000) {
         await reply("Format: *.donasi nominal*\nContoh: _.donasi 50000_\nMinimal 1000");
         return;
     }
@@ -269,82 +269,47 @@ if (lower.startsWith(".donasi")) {
     await react("⏳");
 
     try {
-        const axios = (await import("axios")).default;
-        const qs = (await import("qs")).default;
-
-        // 🔥 bikin reff_id aman (tanpa karakter aneh)
-        const safeJid = jid.replace(/[^0-9]/g, "");
-        const reffId = `DONASI-${Date.now()}-${safeJid}`;
-
-        const payload = new URLSearchParams();
-        payload.append("api_key", " fXwboDH5A2MoHJCp49buHNxTURHQe7zI2nOeGjb14S73cWcMo7HAIXXFLTCUd44Uh39awOxEBCChmds09prj5DrVzORlXxwPPXpw");
-        payload.append("reff_id", reffId);
-        payload.append("nominal", String(nominal));
-        payload.append("type", "ewallet");
-        payload.append("metode", "qrisfast");
-
-        const res = await axios.post(
-            "https://atlantich2h.com/deposit/create",
-            payload,
-            {
-                headers: {
-                    "Content-Type": "application/x-www-form-urlencoded",
-                    "User-Agent": "Mozilla/5.0"
-                }
+        const res = await axios.get("https://thisdiex-api.vercel.app/crtqr", {
+            params: {
+                apikey: "f56a1639-4087-4e98-ac7c-b0f4b8c95ea1",
+                price: nominal,
+                note: `FROM|${jid}`,
             }
-        );
+        });
 
         const data = res.data;
 
-        if (!data.status) {
-            throw new Error(data.message || "API error");
+        if (data.status !== "success") {
+            throw new Error("API gagal");
         }
 
-        // 🔥 handle 2 kemungkinan response
-        const qrImage = data.data.qr_image || null;
-        const qrString = data.data.qr_string || null;
+        const { qr_data, amount, transaction_id } = data;
 
-        if (qrImage) {
-            await sock.sendMessage(jid, {
-                image: { url: qrImage },
-                caption:
+        // 🔥 convert QR string → image buffer
+        const qrBuffer = await generateQR(qr_data);
+
+        await sock.sendMessage(jid, {
+            image: qrBuffer,
+            caption:
 `🙏 *DONASI*
 
-💰 Rp${nominal.toLocaleString("id-ID")}
-📌 ID: ${reffId}
+💰 Rp${amount.toLocaleString("id-ID")}
+🧾 ID: ${transaction_id}
 
 Scan QR di atas ya ❤️`
-            }, { quoted: msg });
-
-        } else if (qrString) {
-            const qrBuffer = await generateQR(qrString);
-
-            await sock.sendMessage(jid, {
-                image: qrBuffer,
-                caption:
-`🙏 *DONASI*
-
-💰 Rp${nominal.toLocaleString("id-ID")}
-📌 ID: ${reffId}
-
-Scan QR di atas ya ❤️`
-            }, { quoted: msg });
-
-        } else {
-            throw new Error("QR tidak tersedia dari API");
-        }
+        }, { quoted: msg });
 
         await react("✅");
 
     } catch (e) {
         console.error("DONASI ERROR:", e.response?.data || e.message);
-        await reply("❌ Gagal membuat donasi");
+
         await react("❌");
-        await reply(`${e}`);
+        await reply("❌ Gagal membuat transaksi");
     }
 
     return;
-                            }
+}
 
     // ── .mp3 ─────────────────────────────────────────────────────────────────
     if (lower.startsWith(".mp3")) {
@@ -465,38 +430,35 @@ app.post("/callback", express.json(), async (req, res) => {
     try {
         const body = req.body;
 
-        console.log("📥 CALLBACK:", body);
+        console.log("📥 SAWERIA CALLBACK:", body);
 
-        const event = body.event;
-        const status = body.status;
-        const data = body.data;
-
-        if (event !== "deposit" || !data) {
+        // validasi tipe event
+        if (body.type !== "donation" || !body.data) {
             return res.json({ ok: true });
         }
 
-        const reffId = data.reff_id;
-        const nominal = data.nominal;
-        const trxStatus = data.status; // ini lebih valid
+        const data = body.data;
 
-        if (!reffId) {
-            return res.status(400).json({ error: "no reff_id" });
+        const trxId = data.id;
+        const nominal = data.amount;
+        const status = data.payment_status; // SUCCESS / PENDING / FAILED
+
+        // 🔥 ambil JID dari message (karena saweria ga punya reff_id custom)
+        // contoh message: DONASI|628xxx@s.whatsapp.net
+        let jid = null;
+        if (data.message && data.message.includes("|")) {
+            jid = data.message.split("|")[1];
         }
 
-        // 🔥 parsing jid dari reff_id
-        // format kita: DONASI-timestamp-jid
-        const parts = reffId.split("-");
-        const jid = parts.slice(2).join("-");
-
         if (!jid) {
-            console.log("❌ JID tidak ditemukan dari reff_id");
+            console.log("❌ JID tidak ditemukan di message");
             return res.json({ ok: true });
         }
 
         // ======================
         // STATUS SUCCESS
         // ======================
-        if (trxStatus === "success") {
+        if (status === "SUCCESS") {
             if (_sock) {
                 await _sock.sendMessage(jid, {
                     text:
@@ -510,20 +472,19 @@ Terima kasih banyak ❤️`
         }
 
         // ======================
-        // STATUS PROCESSING
+        // STATUS PENDING
         // ======================
-        if (trxStatus === "processing") {
-            // optional (biasanya ga perlu spam user)
-            console.log(`⏳ ${reffId} masih processing`);
+        if (status === "PENDING") {
+            console.log(`⏳ ${trxId} masih pending`);
         }
 
         // ======================
-        // STATUS GAGAL / EXPIRED
+        // STATUS FAILED
         // ======================
-        if (trxStatus === "failed" || trxStatus === "expired") {
+        if (status === "FAILED") {
             if (_sock) {
                 await _sock.sendMessage(jid, {
-                    text: "⚠️ Donasi gagal / expired"
+                    text: "⚠️ Donasi gagal"
                 });
             }
         }
