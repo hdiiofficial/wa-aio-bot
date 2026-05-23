@@ -276,13 +276,12 @@ if (lower.startsWith(".donasi")) {
         const safeJid = jid.replace(/[^0-9]/g, "");
         const reffId = `DONASI-${Date.now()}-${safeJid}`;
 
-        const payload = qs.stringify({
-            api_key: process.env.API_KEY,
-            reff_id: reffId,
-            nominal: nominal,
-            type: "ewallet",
-            metode: "qris" // 🔥 FIX DISINI
-        });
+        const payload = new URLSearchParams();
+        payload.append("api_key", process.env.API_KEY);
+        payload.append("reff_id", reffId);
+        payload.append("nominal", String(nominal));
+        payload.append("type", "ewallet");
+        payload.append("metode", "qrisfast");
 
         const res = await axios.post(
             "https://atlantich2h.com/deposit/create",
