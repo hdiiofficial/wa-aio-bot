@@ -411,7 +411,7 @@ Scan QR di atas ya ❤️`
 }
 
 // ── HTTP Server ───────────────────────────────────────────────────────────────
-let _sock = global._sock;
+let _sock = null;
 const app  = express();
 const PORT = process.env.PORT || 3000;
 
@@ -463,8 +463,8 @@ app.post("/callback", express.json(), async (req, res) => {
         // STATUS SUCCESS
         // ======================
         if (status === "SUCCESS") {
-            if (_sock) {
-                await _sock.sendMessage(jid, {
+            if (global._sock) {
+                await global._sock.sendMessage(jid, {
                     text:
 `✅ *DONASI BERHASIL*
 
@@ -486,8 +486,8 @@ Terima kasih banyak ❤️`
         // STATUS FAILED
         // ======================
         if (status === "FAILED") {
-            if (_sock) {
-                await _sock.sendMessage(jid, {
+            if (global._sock) {
+                await global._sock.sendMessage(jid, {
                     text: "⚠️ Donasi gagal"
                 });
             }
@@ -530,7 +530,7 @@ async function startBot() {
         fireInitQueries      : true,
     });
 
-    global._sock = sock;
+    _sock = sock;
     sock.ev.on("creds.update", saveCreds);
 
     sock.ev.on("connection.update", async ({ connection, lastDisconnect, qr }) => {
@@ -550,10 +550,11 @@ async function startBot() {
         if (connection === "open") {
             _logoutRetries = 0;
             resetPairingState();
+            global._sock = sock;
             console.log("✅ WA Bot aktif!\n");
         }
         if (connection === "close") {
-            _sock = null;
+            global._sock = null;
             const errCode = lastDisconnect?.error?.output?.statusCode;
             if (errCode === DisconnectReason.loggedOut) {
                 _logoutRetries++;
