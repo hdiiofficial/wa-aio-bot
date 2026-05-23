@@ -31,7 +31,7 @@ import { generateQR } from "./handlers/qr.js";
 const execFileAsync = promisify(execFile);
 const __dirname     = path.dirname(fileURLToPath(import.meta.url));
 
-const OWNER_PHONE = process.env.OWNER_PHONE || "628159997519";
+const OWNER_PHONE = process.env.OWNER_PHONE || "6285700921759";
 const SESSION_DIR = path.join(__dirname, "session");
 const DATA_DIR    = path.join(__dirname, "data");
 
@@ -279,11 +279,15 @@ if (lower.startsWith(".donasi")) {
 
         const data = res.data;
 
-        if (data.status !== "success") {
-            throw new Error("API gagal");
+        if (!data || data.status !== "PENDING" || !data.details) {
+            throw new Error("API tidak valid");
         }
 
-        const { qr_data, amount, transaction_id } = data;
+        const transaction_id = data.transaction_id;
+        const qr_data = data.details.qr_string;
+        const amount = data.details.amount_raw;
+
+       // const { qr_data, amount, transaction_id } = data;
 
         // 🔥 convert QR string → image buffer
         const qrBuffer = await generateQR(qr_data);
