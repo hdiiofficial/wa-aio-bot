@@ -269,6 +269,9 @@ if (lower.startsWith(".donasi")) {
     await react("⏳");
 
     try {
+        const axios = (await import("axios")).default;
+        const qs = (await import("qs")).default;
+        
         const res = await axios.get("https://thisdiex-api.vercel.app/crtqr", {
             params: {
                 apikey: "f56a1639-4087-4e98-ac7c-b0f4b8c95ea1",
