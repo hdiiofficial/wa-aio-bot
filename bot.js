@@ -282,15 +282,11 @@ if (lower.startsWith(".donasi")) {
 
         const data = res.data;
 
-        if (!data || data.status !== "PENDING" || !data.details) {
-            throw new Error("API tidak valid");
-        }
+        if (data.status !== "success") {
+            throw new Error("API gagal");
 
-        const transaction_id = data.transaction_id;
-        const qr_data = data.details.qr_string;
-        const amount = data.details.amount_raw;
-
-       // const { qr_data, amount, transaction_id } = data;
+        
+       const { qr_data, amount, transaction_id } = data;
 
         // 🔥 convert QR string → image buffer
         const qrBuffer = await generateQR(qr_data);
@@ -309,7 +305,7 @@ Scan QR di atas ya ❤️`
         await react("✅");
 
     } catch (e) {
-        console.error("DONASI ERROR:", e.response?.data || e.message);
+        await reply("DONASI ERROR:", e.response?.data || e.message);
 
         await react("❌");
         await reply("❌ Gagal membuat transaksi");
