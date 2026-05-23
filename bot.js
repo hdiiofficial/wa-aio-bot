@@ -284,6 +284,7 @@ if (lower.startsWith(".donasi")) {
 
         if (data.status !== "success") {
             throw new Error("API gagal");
+        }
 
         
        const { qr_data, amount, transaction_id } = data;
