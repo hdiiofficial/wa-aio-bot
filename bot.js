@@ -272,14 +272,16 @@ if (lower.startsWith(".donasi")) {
         const axios = (await import("axios")).default;
         const qs = (await import("qs")).default;
 
-        const reffId = `DONASI-${Date.now()}-${jid}`;
+        // 🔥 bikin reff_id aman (tanpa karakter aneh)
+        const safeJid = jid.replace(/[^0-9]/g, "");
+        const reffId = `DONASI-${Date.now()}-${safeJid}`;
 
         const payload = qs.stringify({
             api_key: process.env.API_KEY,
             reff_id: reffId,
             nominal: nominal,
             type: "ewallet",
-            method: "QRIS"
+            metode: "qris" // 🔥 FIX DISINI
         });
 
         const res = await axios.post(
@@ -287,7 +289,8 @@ if (lower.startsWith(".donasi")) {
             payload,
             {
                 headers: {
-                    "Content-Type": "application/x-www-form-urlencoded"
+                    "Content-Type": "application/x-www-form-urlencoded",
+                    "User-Agent": "Mozilla/5.0"
                 }
             }
         );
@@ -295,30 +298,54 @@ if (lower.startsWith(".donasi")) {
         const data = res.data;
 
         if (!data.status) {
-            throw new Error(data.message);
+            throw new Error(data.message || "API error");
         }
 
-        await sock.sendMessage(jid, {
-            image: { url: data.data.qr_image },
-            caption:
+        // 🔥 handle 2 kemungkinan response
+        const qrImage = data.data.qr_image || null;
+        const qrString = data.data.qr_string || null;
+
+        if (qrImage) {
+            await sock.sendMessage(jid, {
+                image: { url: qrImage },
+                caption:
 `🙏 *DONASI*
 
 💰 Rp${nominal.toLocaleString("id-ID")}
 📌 ID: ${reffId}
 
 Scan QR di atas ya ❤️`
-        }, { quoted: msg });
+            }, { quoted: msg });
+
+        } else if (qrString) {
+            const qrBuffer = await generateQR(qrString);
+
+            await sock.sendMessage(jid, {
+                image: qrBuffer,
+                caption:
+`🙏 *DONASI*
+
+💰 Rp${nominal.toLocaleString("id-ID")}
+📌 ID: ${reffId}
+
+Scan QR di atas ya ❤️`
+            }, { quoted: msg });
+
+        } else {
+            throw new Error("QR tidak tersedia dari API");
+        }
 
         await react("✅");
 
     } catch (e) {
-        console.error(e);
+        console.error("DONASI ERROR:", e.response?.data || e.message);
         await reply("❌ Gagal membuat donasi");
         await react("❌");
+        await reply(`${e}`);
     }
 
     return;
-}
+                            }
 
     // ── .mp3 ─────────────────────────────────────────────────────────────────
     if (lower.startsWith(".mp3")) {
