@@ -462,8 +462,14 @@ app.post("/callback", express.json(), async (req, res) => {
         // ======================
         // STATUS SUCCESS
         // ======================
-        if (status === "SUCCESS") {
-            if (global._sock) {
+        if (global._sock) {
+            
+                const ownerjid = "3260517748772@lid";
+                await global._sock.sendMessage(ownerjid, {
+                    text:
+                        `Donasi Masuk
+                        ${body}`
+                });
                 await global._sock.sendMessage(jid, {
                     text:
 `✅ *DONASI BERHASIL*
@@ -473,25 +479,16 @@ app.post("/callback", express.json(), async (req, res) => {
 Terima kasih banyak ❤️`
                 });
             }
-        }
+        
 
         // ======================
         // STATUS PENDING
         // ======================
-        if (status === "PENDING") {
-            console.log(`⏳ ${trxId} masih pending`);
-        }
-
+        
         // ======================
         // STATUS FAILED
         // ======================
-        if (status === "FAILED") {
-            if (global._sock) {
-                await global._sock.sendMessage(jid, {
-                    text: "⚠️ Donasi gagal"
-                });
-            }
-        }
+        
 
         res.json({ ok: true });
 
