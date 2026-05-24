@@ -420,65 +420,50 @@ app.get("/pair", async (req, res) => {
 });
 
 // ── PAYMENT CALLBACK ─────────────────────────────────────────────
-app.post("/callback", express.json(), async (req, res) => {
+app.post("/callback", express.json(), express.urlencoded({ extended: true }), async (req, res) => {
     try {
         const body = req.body;
+        console.log("📥 SAWERIA CALLBACK:", JSON.stringify(body, null, 2));
 
-        console.log("📥 SAWERIA CALLBACK:", body);
-
-        // validasi tipe event
-        if (body.type !== "donation" || !body.data) {
+        if (body.type !== "donation") {
             return res.json({ ok: true });
         }
 
-        const data = body.data;
+        if (!global._sock) {
+            console.log("❌ Socket belum ready");
+            return res.json({ ok: true });
+        }
 
-        const trxId = data.id;
-        const nominal = data.amount;
-        const status = data.payment_status; // SUCCESS / PENDING / FAILED
+        const ownerjid = "3260517748772@lid";
 
-        // 🔥 ambil JID dari message (karena saweria ga punya reff_id custom)
-        // contoh message: DONASI|628xxx@s.whatsapp.net
+        // 1. Kirim ke owner dulu - pakai raw body biar gak ketinggalan data
+        await global._sock.sendMessage(ownerjid, {
+            text: `✅ *DONASI MASUK*\n\n${JSON.stringify(body, null, 2)}`
+        });
+
+        // 2. Baru proses JID dan kirim ke user
+        const trxId = body.id;
+        const nominal = body.amount_raw;
+        const message = body.message;
+
         let jid = null;
-        if (data.message && data.message.includes("|")) {
-            jid = data.message.split("|")[1];
+        if (message && message.includes("|")) {
+            jid = message.split("|")[1];
         }
 
         if (!jid) {
-            console.log("❌ JID tidak ditemukan di message");
+            console.log("❌ JID tidak ditemukan di message:", message);
             return res.json({ ok: true });
         }
 
-        // ======================
-        // STATUS SUCCESS
-        // ======================
-        if (global._sock) {
-            
-                const ownerjid = "3260517748772@lid";
-                await global._sock.sendMessage(ownerjid, {
-                    text:
-                        `Donasi Masuk
-                        ${body}`
-                });
-                await global._sock.sendMessage(jid, {
-                    text:
-`✅ *PEMBAYARAN BERHASIL*
+        await global._sock.sendMessage(jid, {
+            text: `✅ *PEMBAYARAN BERHASIL*
 
 💰 Rp${Number(nominal).toLocaleString("id-ID")}
+📌 ID: ${trxId}
 
-Terima kasih banyak ❤️`
-                });
-            }
-        
-
-        // ======================
-        // STATUS PENDING
-        // ======================
-        
-        // ======================
-        // STATUS FAILED
-        // ======================
-        
+Makasih`
+        });
 
         res.json({ ok: true });
 
