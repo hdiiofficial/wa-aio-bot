@@ -31,7 +31,7 @@ import { generateQR } from "./handlers/qr.js";
 const execFileAsync = promisify(execFile);
 const __dirname     = path.dirname(fileURLToPath(import.meta.url));
 
-const OWNER_PHONE = process.env.OWNER_PHONE || "628159997519";
+const OWNER_PHONE = process.env.OWNER_PHONE || "6285700921759";
 const SESSION_DIR = path.join(__dirname, "session");
 const DATA_DIR    = path.join(__dirname, "data");
 
@@ -110,36 +110,25 @@ async function handleMessage(sock, jid, msg) {
     // ── .menu ─────────────────────────────────────────────────────────────────
     if (lower === ".menu" || lower === ".help" || lower === ".start") {
         await reply(
-`── HADES TECH Bot ────────────────
-*Download Video*
-  Kirim link langsung → auto download
-  Platform: YouTube, TikTok, Instagram, Facebook, Twitter/X, Reddit, dll
+            `
+╭━━━━━━━━━━━━━╮
+   🤖 *HADES TECH ASIST* 🤖
+╰━━━━━━━━━━━━━╯
 
-*Download Audio*
-  *.mp3 [link]* → download MP3
+Halo! Kirim link YouTube, TikTok, IG, FB, Twitter, Reddit langsung aja → auto download ✨
 
-*Stiker*
-  *.stiker* (balas gambar/video) → buat stiker
-  *.stiker [TEKS]* → stiker dengan teks
+╭─〔 📥 *DOWNLOAD* 〕─╮
+│ • Kirim link langsung
+│ • *.mp3 [link]* → Download audio MP3
+╰────────────────────╯
 
-*Kalkulator*
-  *.hitung [ekspresi]*
-  Atau ketik rumus langsung, contoh: _15000 * 30_
-
-*Kurs & Crypto*
-  *.kurs [dari] [ke]* — contoh: _.kurs usd idr_
-  *.crypto [koin]* — contoh: _.crypto btc_
-  Atau ketik: _1 btc to idr_ / _100 usd to idr_
-
-*Wikipedia*
-  *.wiki [topik]*
-
-*QR Code*
-  *.qr [teks/link]*
-
-
-Powered by @HADI.ft.Vincent
-────────────────────────────────────`
+╭─〔 🎨 *STIKER* 〕─╮
+│ • *.stiker* → Balas gambar/video
+│ • *.stiker [teks]* → Stiker teks
+╰──────────────────╯
+━━━━━━━━━━━━━━━━━━━━━
+Powered by @HADIftVINCENT
+            `
         );
         return;
     }
@@ -257,12 +246,12 @@ Powered by @HADI.ft.Vincent
     }
 
     // ── .donasi ───────────────────────────────────────────────────────────────
-if (lower.startsWith(".donasi")) {
+if (lower.startsWith(".pay")) {
     const args = body.trim().split(/\s+/);
     const nominal = Number(args[1]);
 
     if (!args[1] || isNaN(nominal) || nominal < 1000) {
-        await reply("Format: *.donasi nominal*\nContoh: _.donasi 50000_\nMinimal 1000");
+        await reply("Format: *.pay nominal*\nContoh: _.donasi 50000_\nMinimal 1000");
         return;
     }
 
@@ -295,12 +284,13 @@ if (lower.startsWith(".donasi")) {
         await sock.sendMessage(jid, {
             image: qrBuffer,
             caption:
-`🙏 *DONASI*
+`🙏 *SILAHKAN SCAN QR DIATAS UNTUK MENEYELESAIKAN PEMBAYARAN*
 
 💰 Rp${amount.toLocaleString("id-ID")}
 🧾 ID: ${transaction_id}
 
-Scan QR di atas ya ❤️`
+
+`
         }, { quoted: msg });
 
         await react("✅");
@@ -472,7 +462,7 @@ app.post("/callback", express.json(), async (req, res) => {
                 });
                 await global._sock.sendMessage(jid, {
                     text:
-`✅ *DONASI BERHASIL*
+`✅ *PEMBAYARAN BERHASIL*
 
 💰 Rp${Number(nominal).toLocaleString("id-ID")}
 
